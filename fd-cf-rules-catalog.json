@@ -119,6 +119,39 @@
         "LANG_SEGMENT": "Segmentos de idioma NO principales detectados en ps_lang (ej: gb, fr, de). Una condición OR por idioma secundario. Tiendas monoidioma: patrón sin segmento, solo query de facetas con múltiples selecciones."
       },
       "source": "Patrón de regla validado en producción (segmento de idioma secundario + q=). El q= es la codificación estándar de selecciones de ps_facetedsearch en PS 1.7+, idéntica con o sin el override de iqit/Warehouse, por lo que una sola plantilla cubre toda la flota. Complementa el ruleset ModSecurity anti-scraping en capa servidor."
+    },
+    "fnac_cron": {
+      "rule": "skip",
+      "detect": {
+        "module_exact": [
+          "fnac"
+        ],
+        "active_required": true
+      },
+      "expression_fragment": "(http.request.uri.path contains \"/modules/fnac/\")",
+      "source": "Conector Fnac (familia Common-Services). Mismo patrón que Amazon: endpoints de cron/funciones autenticados, invocados por el programador de tareas. Validado contra reglas manuales en producción en la flota."
+    },
+    "fastbay_cron": {
+      "rule": "skip",
+      "detect": {
+        "module_exact": [
+          "fastbay1"
+        ],
+        "active_required": true
+      },
+      "expression_fragment": "(http.request.uri.path contains \"/module/fastbay1/\")",
+      "source": "Conector eBay FastBay. Sus URLs son rutas de front controller (/module/fastbay1/), no rutas de fichero; puede recibir notificaciones entrantes ademas de crons. Validado contra reglas manuales en producción en la flota."
+    },
+    "temu_cron": {
+      "rule": "skip",
+      "detect": {
+        "module_exact": [
+          "temuconnect"
+        ],
+        "active_required": true
+      },
+      "expression_fragment": "(http.request.uri.path contains \"/modules/temuconnect/\")",
+      "source": "Conector Temu. Mismo patrón de endpoints de módulo que el resto de la familia marketplace. Validado contra reglas manuales en producción en la flota."
     }
   },
   "hardening_advisories": {
