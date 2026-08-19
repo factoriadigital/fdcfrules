@@ -1,0 +1,134 @@
+{
+  "format": 1,
+  "name": "fd-cf-rules-catalog",
+  "updated": "2026-08-19",
+  "comment": "Catálogo central de fdcfrules. Fuente única de verdad para IPs/ASNs/patrones. El módulo lo descarga y cachea 24h. Presupuesto plan Free CF: 5 reglas custom por zona; fdcfrules usa máximo 3 (skip, block, challenge) agrupando componentes por acción. Este fichero es público: no debe contener nombres de clientes, dominios, cuentas ni servidores.",
+  "rules": {
+    "skip": {
+      "name": "[FD-SKIP] Pasarelas, crawlers y API",
+      "action": "skip",
+      "order_hint": 1,
+      "comment": "Primera en orden de evaluación: nada posterior debe pisar pagos ni rastreo. Se compone con OR de los componentes cuya detección sea positiva en la tienda."
+    },
+    "block": {
+      "name": "[FD-SYNC] Bloqueo ASN flota",
+      "action": "block",
+      "order_hint": 2,
+      "comment": "Marca [FD-SYNC]: la consumen los sistemas de sincronización de Factoría Digital para replicar el bloqueo en el firewall del servidor automáticamente."
+    },
+    "challenge": {
+      "name": "[FD-CHALLENGE] Anti-scraping facetas",
+      "action": "managed_challenge",
+      "order_hint": 3,
+      "comment": "Plantilla según el motor de facetas detectado en la tienda."
+    }
+  },
+  "components": {
+    "redsys": {
+      "rule": "skip",
+      "detect": {
+        "module_like": [
+          "%redsys%",
+          "%bizum%"
+        ],
+        "known_modules": [
+          "redsyspur",
+          "redsysoficial",
+          "redsys",
+          "obsredsys",
+          "awredsys",
+          "bizum",
+          "ps_bizumpayment",
+          "dd_bizum",
+          "conexiaweb_bizum",
+          "corecreativo_bizum"
+        ],
+        "active_required": true
+      },
+      "expression_fragment": "(ip.src.asnum eq 31627) or (ip.src in {195.76.9.0/24 193.16.243.0/24 194.224.159.47 194.224.159.57})",
+      "source": "Regla validada en producción en la flota. ASN 31627 = Redsys Servicios de Procesamiento; rangos y IPs sueltas como respaldo.",
+      "asns": [
+        31627
+      ],
+      "cidrs": [
+        "195.76.9.0/24",
+        "193.16.243.0/24"
+      ],
+      "ips": [
+        "194.224.159.47",
+        "194.224.159.57"
+      ]
+    },
+    "crawlers_google": {
+      "rule": "skip",
+      "detect": {
+        "always": true
+      },
+      "expression_fragment": "(ip.src in {66.249.64.0/20})",
+      "source": "Rango oficial de Googlebot, en producción en la flota. Refresco recomendado desde https://developers.google.com/static/crawling/ipranges/common-crawlers.json (nueva ruta desde marzo 2026).",
+      "cidrs": [
+        "66.249.64.0/20"
+      ],
+      "refresh_url": "https://developers.google.com/static/crawling/ipranges/common-crawlers.json"
+    },
+    "amazon_cron": {
+      "rule": "skip",
+      "detect": {
+        "module_exact": [
+          "amazon"
+        ],
+        "active_required": true
+      },
+      "expression_fragment": "(http.request.uri.path contains \"/modules/amazon/functions/\")",
+      "source": "Módulo Common-Services/Feed.biz: saliente puro hacia Amazon (SP-API + SQS pull); lo entrante son sus endpoints de cron autenticados por cron_token. El skip evita que challenges rompan los crons.",
+      "hardening_optional": "Si el invocador tiene IP fija (n8n, servidor de crons), añadir: and ip.src in {IP_INVOCADOR}"
+    },
+    "ps_webservice": {
+      "rule": "skip",
+      "detect": {
+        "configuration": "PS_WEBSERVICE=1",
+        "webservice_keys_active": ">0"
+      },
+      "expression_fragment": "(http.request.uri.path contains \"/api/\")",
+      "source": "Webservice nativo PrestaShop (auth por clave WS propia). Solo se propone si hay claves activas; con webservice habilitado y 0 claves, fdcfrules sugiere desactivarlo (hardening) en vez de crear regla.",
+      "hardening_optional": "Si los consumidores de la API tienen IP fija, añadir: and ip.src in {IPS_CONSUMIDORES}"
+    },
+    "block_asn_flota": {
+      "rule": "block",
+      "detect": {
+        "always": true
+      },
+      "expression_fragment": "(ip.src.asnum eq 214483) or (ip.src.asnum eq 62610)",
+      "source": "ASNs de proxies residenciales validados en producción en la flota. Lista de flota: ampliar aquí y todas las tiendas lo heredan en el siguiente refresco.",
+      "asns": [
+        214483,
+        62610
+      ]
+    },
+    "facets": {
+      "rule": "challenge",
+      "detect": {
+        "module_exact": [
+          "ps_facetedsearch"
+        ],
+        "active_required": true,
+        "variant_iqit": "Informativo: override presente en /override/modules/ps_facetedsearch/ o theme_name='warehouse' en ps_shop. Mismo módulo, mismas URLs con q=; no cambia la expresión."
+      },
+      "expression_template": "(http.request.uri.path contains \"/{LANG_SEGMENT}/\" and http.request.uri.query contains \"q=\")",
+      "template_vars": {
+        "LANG_SEGMENT": "Segmentos de idioma NO principales detectados en ps_lang (ej: gb, fr, de). Una condición OR por idioma secundario. Tiendas monoidioma: patrón sin segmento, solo query de facetas con múltiples selecciones."
+      },
+      "source": "Patrón de regla validado en producción (segmento de idioma secundario + q=). El q= es la codificación estándar de selecciones de ps_facetedsearch en PS 1.7+, idéntica con o sin el override de iqit/Warehouse, por lo que una sola plantilla cubre toda la flota. Complementa el ruleset ModSecurity anti-scraping en capa servidor."
+    }
+  },
+  "hardening_advisories": {
+    "ws_enabled_no_keys": {
+      "detect": "PS_WEBSERVICE=1 AND claves_activas=0",
+      "message": "Webservice habilitado sin claves activas: superficie innecesaria. Recomendación: desactivar PS_WEBSERVICE."
+    },
+    "dev_domain": {
+      "detect": "dominio es IP, .local o .test",
+      "message": "Dominio no gestionable en Cloudflare: fdcfrules no propone reglas para esta instalación."
+    }
+  }
+}
