@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "revision": 4,
+  "revision": 5,
   "name": "fd-cf-rules-catalog",
   "updated": "2026-08-19",
   "comment": "Catálogo central de fdcfrules. Fuente única de verdad para IPs/ASNs/patrones. El módulo lo descarga y cachea 24h. Presupuesto plan Free CF: 5 reglas custom por zona; fdcfrules usa máximo 3 (skip, block, challenge) agrupando componentes por acción. Este fichero es público: no debe contener nombres de clientes, dominios, cuentas ni servidores.",
@@ -145,7 +145,7 @@
         "active_required": true
       },
       "expression_fragment": "(http.request.uri.path contains \"/module/fastbay1/\")",
-      "source": "Conector eBay FastBay. Sus URLs son rutas de front controller (/module/fastbay1/), no rutas de fichero; puede recibir notificaciones entrantes ademas de crons. Validado contra reglas manuales en producción en la flota."
+      "source": "Conector eBay FastBay 1 (Prestalia). Saliente puro hacia api.ebay.com; el único entrante es su cron.php (ruta /module/fastbay1/cron), invocado por el servicio de Prestalia (app.prestalia.it) o cron local, autenticado por token propio. eBay NUNCA conecta con la tienda: no se necesitan IPs de eBay ni de Azure en allowlist. Validado por análisis del código del módulo."
     },
     "temu_cron": {
       "rule": "skip",
@@ -157,6 +157,17 @@
       },
       "expression_fragment": "(http.request.uri.path contains \"/modules/temuconnect/\")",
       "source": "Conector Temu. Mismo patrón de endpoints de módulo que el resto de la familia marketplace. Validado contra reglas manuales en producción en la flota."
+    },
+    "ipexportimport_cron": {
+      "rule": "skip",
+      "detect": {
+        "module_exact": [
+          "ipexportimport"
+        ],
+        "active_required": true
+      },
+      "expression_fragment": "(http.request.uri.path contains \"/module/ipexportimport/\")",
+      "source": "Módulo IP Export/Import: endpoints front de exportación/importación de catálogo y pedidos, autenticados por token md5(secure_key), invocados por el programador de tareas. Saliente/cron, no recibe tráfico de terceros. Validado por análisis del código del módulo."
     }
   },
   "hardening_advisories": {
