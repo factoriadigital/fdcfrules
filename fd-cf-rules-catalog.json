@@ -1,5 +1,6 @@
 {
   "format": 1,
+  "revision": 4,
   "name": "fd-cf-rules-catalog",
   "updated": "2026-08-19",
   "comment": "Catálogo central de fdcfrules. Fuente única de verdad para IPs/ASNs/patrones. El módulo lo descarga y cachea 24h. Presupuesto plan Free CF: 5 reglas custom por zona; fdcfrules usa máximo 3 (skip, block, challenge) agrupando componentes por acción. Este fichero es público: no debe contener nombres de clientes, dominios, cuentas ni servidores.",
@@ -112,13 +113,17 @@
           "ps_facetedsearch"
         ],
         "active_required": true,
-        "variant_iqit": "Informativo: override presente en /override/modules/ps_facetedsearch/ o theme_name='warehouse' en ps_shop. Mismo módulo, mismas URLs con q=; no cambia la expresión."
+        "variant_iqit": "Informativo: override en /override/modules/ps_facetedsearch/ o tema Warehouse. Mismo módulo, mismos parámetros; no cambia la expresión."
       },
-      "expression_template": "(http.request.uri.path contains \"/{LANG_SEGMENT}/\" and http.request.uri.query contains \"q=\")",
-      "template_vars": {
-        "LANG_SEGMENT": "Segmentos de idioma NO principales detectados en ps_lang (ej: gb, fr, de). Una condición OR por idioma secundario. Tiendas monoidioma: patrón sin segmento, solo query de facetas con múltiples selecciones."
-      },
-      "source": "Patrón de regla validado en producción (segmento de idioma secundario + q=). El q= es la codificación estándar de selecciones de ps_facetedsearch en PS 1.7+, idéntica con o sin el override de iqit/Warehouse, por lo que una sola plantilla cubre toda la flota. Complementa el ruleset ModSecurity anti-scraping en capa servidor."
+      "query_params": [
+        "q=",
+        "order=",
+        "resultsPerPage"
+      ],
+      "exempt_cookie_prefix": "PrestaShop-",
+      "exempt_verified_bots": true,
+      "expression_template": "Por cada parámetro P: (http.request.uri.query contains \"P\" and not http.cookie contains \"PrestaShop-\" and not cf.client.bot), unidos por or.",
+      "source": "Patrón 'sin sesión' validado en producción en la flota: desafía solo a clientes sin cookie de la tienda y exime bots verificados (cf.client.bot, disponible en plan Free). Válido para tiendas mono y multiidioma. Nota: un bot que adopte cookies elude solo el challenge, nunca los bloqueos; la capa ModSecurity del servidor sigue aplicando. Complementa el ruleset anti-scraping de facetas en capa servidor."
     },
     "fnac_cron": {
       "rule": "skip",
