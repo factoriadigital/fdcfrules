@@ -1,8 +1,8 @@
 {
   "format": 1,
-  "revision": 5,
+  "revision": 6,
   "name": "fd-cf-rules-catalog",
-  "updated": "2026-08-19",
+  "updated": "2026-08-25",
   "comment": "Catálogo central de fdcfrules. Fuente única de verdad para IPs/ASNs/patrones. El módulo lo descarga y cachea 24h. Presupuesto plan Free CF: 5 reglas custom por zona; fdcfrules usa máximo 3 (skip, block, challenge) agrupando componentes por acción. Este fichero es público: no debe contener nombres de clientes, dominios, cuentas ni servidores.",
   "rules": {
     "skip": {
@@ -66,11 +66,20 @@
         "always": true
       },
       "expression_fragment": "(ip.src in {66.249.64.0/20})",
-      "source": "Rango oficial de Googlebot, en producción en la flota. Refresco recomendado desde https://developers.google.com/static/crawling/ipranges/common-crawlers.json (nueva ruta desde marzo 2026).",
+      "source": "Rango oficial de Googlebot Y de los rastreadores de Google Ads (AdsBot-Google, AdsBot-Google-Mobile), que comparten el rango 66.249.64.0/20. La exención por IP cubre ambos. AdsBot verifica las páginas de destino de los anuncios; si recibe 403 (típicamente por Bot Fight Mode o Under Attack, que van por encima del WAF), Google desaprueba los anuncios. Validado en producción en la flota. Refresco desde la URL oficial (nueva ruta desde marzo 2026).",
       "cidrs": [
         "66.249.64.0/20"
       ],
-      "refresh_url": "https://developers.google.com/static/crawling/ipranges/common-crawlers.json"
+      "refresh_url": "https://developers.google.com/static/crawling/ipranges/common-crawlers.json",
+      "covers": [
+        "Googlebot",
+        "AdsBot-Google",
+        "AdsBot-Google-Mobile"
+      ],
+      "notes": [
+        "AdsBot usa el rango 66.249.64.0/20, ya cubierto por IP. No requiere fragmento extra.",
+        "Si AdsBot recibe 403 pese a esta regla, la causa es Bot Fight Mode o Under Attack (por encima del WAF): desactivarlos, no basta la regla WAF."
+      ]
     },
     "amazon_cron": {
       "rule": "skip",
@@ -168,6 +177,30 @@
       },
       "expression_fragment": "(http.request.uri.path contains \"/module/ipexportimport/\")",
       "source": "Módulo IP Export/Import: endpoints front de exportación/importación de catálogo y pedidos, autenticados por token md5(secure_key), invocados por el programador de tareas. Saliente/cron, no recibe tráfico de terceros. Validado por análisis del código del módulo."
+    },
+    "eurocoinpay": {
+      "rule": "skip",
+      "detect": {
+        "module_like": [
+          "%eurocoinpay%",
+          "%crypto%",
+          "%coinpay%"
+        ],
+        "known_modules": [
+          "eurocoinpay"
+        ],
+        "active_required": true
+      },
+      "expression_fragment": "(http.request.uri.path contains \"/module/eurocoinpay/\")",
+      "source": "Pasarela de pago en criptomonedas. La notificación servidor-a-servidor que confirma el pedido llega como POST sin User-Agent desde datacenter (visto: AS16276 OVH). Cae en filtros genéricos (Bot Fight Mode, Under Attack, challenge sin sesión) y muere en silencio: el pago se cobra pero el pedido no se crea. La exención por RUTA cubre la notificación independientemente de la IP de origen (que puede variar). Validado en producción en la flota.",
+      "paths": [
+        "/module/eurocoinpay/"
+      ],
+      "notes": [
+        "Las pasarelas cripto notifican por webhook sin navegador: revisar SIEMPRE con un pedido de prueba real que el pedido se genere tras el pago.",
+        "Si además hay Bot Fight Mode o Under Attack activos en la zona, la exención por regla WAF NO basta (van por encima del WAF): hay que desactivarlos.",
+        "Tiendas multiidioma: la ruta puede llevar prefijo de idioma (/fr/module/eurocoinpay/...); 'contains' lo cubre igualmente."
+      ]
     }
   },
   "hardening_advisories": {
