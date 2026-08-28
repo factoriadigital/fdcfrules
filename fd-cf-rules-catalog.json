@@ -1,8 +1,8 @@
 {
   "format": 1,
-  "revision": 6,
+  "revision": 7,
   "name": "fd-cf-rules-catalog",
-  "updated": "2026-08-25",
+  "updated": "2026-08-28",
   "comment": "Catálogo central de fdcfrules. Fuente única de verdad para IPs/ASNs/patrones. El módulo lo descarga y cachea 24h. Presupuesto plan Free CF: 5 reglas custom por zona; fdcfrules usa máximo 3 (skip, block, challenge) agrupando componentes por acción. Este fichero es público: no debe contener nombres de clientes, dominios, cuentas ni servidores.",
   "rules": {
     "skip": {
@@ -108,11 +108,19 @@
       "detect": {
         "always": true
       },
-      "expression_fragment": "(ip.src.asnum eq 214483) or (ip.src.asnum eq 62610)",
-      "source": "ASNs de proxies residenciales validados en producción en la flota. Lista de flota: ampliar aquí y todas las tiendas lo heredan en el siguiente refresco.",
+      "expression_fragment": "(ip.src.asnum eq 214483) or (ip.src in {2a13:dcc0::/29 2a01:f2c0::/29 2a11:c40::/29})",
+      "source": "Proxies residenciales. AS214483 (RapidSeedbox) se bloquea por ASN completo. De AS62610 se bloquean SOLO los tres rangos IPv6 de los operadores identificados (MB Eisina 2a13:dcc0::/29, Xantho 2a01:f2c0::/29, Pilo IP 2a11:c40::/29) en lugar del ASN entero: bloquear AS62610 completo resolvia a ~217 prefijos e incluia rangos residenciales legitimos de varios paises (se detectaron rangos ES entre ellos), con riesgo de cortar a clientes reales. REVISION 7 (2026-08-28): sustituye al bloqueo por ASN de ambos, mas amplio.",
       "asns": [
-        214483,
-        62610
+        214483
+      ],
+      "cidrs_v6": [
+        "2a13:dcc0::/29",
+        "2a01:f2c0::/29",
+        "2a11:c40::/29"
+      ],
+      "notes": [
+        "NO usar el circuito de sincronizacion a Imunify360 con este componente: la proteccion equivalente esta en el ipset de flota del firewall (blacklist_fd), aplicada a nivel de cluster.",
+        "Si se amplia la lista de rangos, hacerlo aqui y en el ipset de flota para mantenerlos alineados."
       ]
     },
     "facets": {
