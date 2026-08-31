@@ -1,8 +1,8 @@
 {
   "format": 1,
-  "revision": 7,
+  "revision": 8,
   "name": "fd-cf-rules-catalog",
-  "updated": "2026-08-28",
+  "updated": "2026-08-31",
   "comment": "Catálogo central de fdcfrules. Fuente única de verdad para IPs/ASNs/patrones. El módulo lo descarga y cachea 24h. Presupuesto plan Free CF: 5 reglas custom por zona; fdcfrules usa máximo 3 (skip, block, challenge) agrupando componentes por acción. Este fichero es público: no debe contener nombres de clientes, dominios, cuentas ni servidores.",
   "rules": {
     "skip": {
@@ -126,10 +126,7 @@
     "facets": {
       "rule": "challenge",
       "detect": {
-        "module_exact": [
-          "ps_facetedsearch"
-        ],
-        "active_required": true,
+        "always": true,
         "variant_iqit": "Informativo: override en /override/modules/ps_facetedsearch/ o tema Warehouse. Mismo módulo, mismos parámetros; no cambia la expresión."
       },
       "query_params": [
@@ -140,7 +137,12 @@
       "exempt_cookie_prefix": "PrestaShop-",
       "exempt_verified_bots": true,
       "expression_template": "Por cada parámetro P: (http.request.uri.query contains \"P\" and not http.cookie contains \"PrestaShop-\" and not cf.client.bot), unidos por or.",
-      "source": "Patrón 'sin sesión' validado en producción en la flota: desafía solo a clientes sin cookie de la tienda y exime bots verificados (cf.client.bot, disponible en plan Free). Válido para tiendas mono y multiidioma. Nota: un bot que adopte cookies elude solo el challenge, nunca los bloqueos; la capa ModSecurity del servidor sigue aplicando. Complementa el ruleset anti-scraping de facetas en capa servidor."
+      "source": "Patrón 'sin sesión' validado en producción en la flota: desafía solo a clientes sin cookie de la tienda y exime bots verificados (cf.client.bot, disponible en plan Free). Válido para tiendas mono y multiidioma. REVISION 8 (2026-08-31): pasa a detect.always. Antes se proponía solo si ps_facetedsearch estaba instalado y activo, pero los parámetros q=/order=/resultsPerPage los genera también el BUSCADOR nativo de PrestaShop y otros módulos de listado, así que el scraping entra igual con ps_facetedsearch desactivado. La regla es inocua donde no haya ese tráfico (no desafía a nadie si no aparecen esos parámetros) y necesaria donde sí lo hay. Nota: un bot que adopte cookies elude solo el challenge, nunca los bloqueos; la capa ModSecurity del servidor sigue aplicando.",
+      "notes": [
+        "Se propone en TODAS las tiendas: los parámetros vigilados no son exclusivos de ps_facetedsearch.",
+        "Coste cero si la tienda no recibe ese tráfico: sin peticiones con q=/order=/resultsPerPage, la regla nunca se dispara.",
+        "Los clientes con sesión iniciada y los bots verificados quedan exentos por diseño."
+      ]
     },
     "fnac_cron": {
       "rule": "skip",
