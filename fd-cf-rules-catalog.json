@@ -1,8 +1,8 @@
 {
   "format": 1,
-  "revision": 8,
+  "revision": 9,
   "name": "fd-cf-rules-catalog",
-  "updated": "2026-08-31",
+  "updated": "2026-09-01",
   "comment": "Catálogo central de fdcfrules. Fuente única de verdad para IPs/ASNs/patrones. El módulo lo descarga y cachea 24h. Presupuesto plan Free CF: 5 reglas custom por zona; fdcfrules usa máximo 3 (skip, block, challenge) agrupando componentes por acción. Este fichero es público: no debe contener nombres de clientes, dominios, cuentas ni servidores.",
   "rules": {
     "skip": {
@@ -136,12 +136,20 @@
       ],
       "exempt_cookie_prefix": "PrestaShop-",
       "exempt_verified_bots": true,
-      "expression_template": "Por cada parámetro P: (http.request.uri.query contains \"P\" and not http.cookie contains \"PrestaShop-\" and not cf.client.bot), unidos por or.",
-      "source": "Patrón 'sin sesión' validado en producción en la flota: desafía solo a clientes sin cookie de la tienda y exime bots verificados (cf.client.bot, disponible en plan Free). Válido para tiendas mono y multiidioma. REVISION 8 (2026-08-31): pasa a detect.always. Antes se proponía solo si ps_facetedsearch estaba instalado y activo, pero los parámetros q=/order=/resultsPerPage los genera también el BUSCADOR nativo de PrestaShop y otros módulos de listado, así que el scraping entra igual con ps_facetedsearch desactivado. La regla es inocua donde no haya ese tráfico (no desafía a nadie si no aparecen esos parámetros) y necesaria donde sí lo hay. Nota: un bot que adopte cookies elude solo el challenge, nunca los bloqueos; la capa ModSecurity del servidor sigue aplicando.",
+      "expression_template": "Por cada parámetro P: (http.request.uri.query contains \"P\" and not http.cookie contains \"PrestaShop-\" and (not cf.client.bot or ip.src.asnum eq 32934)), unidos por or. La exención de bots verificados se acota con los ASN de verified_bots_exceptions.",
+      "source": "Patrón 'sin sesión' validado en producción en la flota: desafía solo a clientes sin cookie de la tienda y exime bots verificados (cf.client.bot, disponible en plan Free). Válido para tiendas mono y multiidioma.\nREVISION 8 (2026-08-31): pasa a detect.always. Los parámetros q=/order=/resultsPerPage los genera también el buscador nativo de PrestaShop y otros módulos de listado, así que el scraping entra igual con ps_facetedsearch desactivado.\nREVISION 9 (2026-09-01): la exención de bots verificados deja de cubrir al AS32934 (Meta). Cloudflare lo reconoce como bot verificado, de modo que 'not cf.client.bot' lo dejaba pasar y el challenge no llegaba a aplicarse; se detectó en producción saturando una tienda con recorrido masivo de facetas. Es un fallo del catálogo, no de la tienda: afectaba a todas las zonas por igual.",
       "notes": [
         "Se propone en TODAS las tiendas: los parámetros vigilados no son exclusivos de ps_facetedsearch.",
         "Coste cero si la tienda no recibe ese tráfico: sin peticiones con q=/order=/resultsPerPage, la regla nunca se dispara.",
-        "Los clientes con sesión iniciada y los bots verificados quedan exentos por diseño."
+        "Los clientes con sesión iniciada quedan exentos por diseño.",
+        "Googlebot, Bingbot y demás buscadores siguen exentos: solo se retira la exención a los ASN listados en verified_bots_exceptions."
+      ],
+      "verified_bots_exceptions": [
+        {
+          "asn": 32934,
+          "name": "Meta / Facebook",
+          "reason": "Está en la lista de bots verificados de Cloudflare, así que 'not cf.client.bot' lo eximía del challenge. Se ha observado en producción recorriendo combinaciones de facetas (talla, copa, fabricante, temporada) a alto ritmo, que son las consultas más caras de PrestaShop, y rotando entre bloques /48 del rango 2a03:2880::/32 cuando se le bloquea. Excluirlo de la exención NO afecta a las previsualizaciones de enlaces de Facebook, Instagram o WhatsApp: esas peticiones no llevan parámetros de faceta."
+        }
       ]
     },
     "fnac_cron": {
