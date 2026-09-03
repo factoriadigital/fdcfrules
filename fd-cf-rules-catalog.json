@@ -1,8 +1,8 @@
 {
   "format": 1,
-  "revision": 9,
+  "revision": 10,
   "name": "fd-cf-rules-catalog",
-  "updated": "2026-09-01",
+  "updated": "2026-09-03",
   "comment": "Catálogo central de fdcfrules. Fuente única de verdad para IPs/ASNs/patrones. El módulo lo descarga y cachea 24h. Presupuesto plan Free CF: 5 reglas custom por zona; fdcfrules usa máximo 3 (skip, block, challenge) agrupando componentes por acción. Este fichero es público: no debe contener nombres de clientes, dominios, cuentas ni servidores.",
   "rules": {
     "skip": {
@@ -218,6 +218,29 @@
         "Las pasarelas cripto notifican por webhook sin navegador: revisar SIEMPRE con un pedido de prueba real que el pedido se genere tras el pago.",
         "Si además hay Bot Fight Mode o Under Attack activos en la zona, la exención por regla WAF NO basta (van por encima del WAF): hay que desactivarlos.",
         "Tiendas multiidioma: la ruta puede llevar prefijo de idioma (/fr/module/eurocoinpay/...); 'contains' lo cubre igualmente."
+      ]
+    },
+    "cd_integracion": {
+      "rule": "skip",
+      "detect": {
+        "module_like": [
+          "cdimport%",
+          "cdexportarxml%",
+          "cdintegrapedidoftp%",
+          "cd_%"
+        ],
+        "active_required": true
+      },
+      "expression_fragment": "(http.request.uri.path contains \"/modules/cdimport/\") or (http.request.uri.path contains \"/modules/cdexportarxml/\") or (http.request.uri.path contains \"/modules/cdintegrapedidoftp/\")",
+      "source": "Integración de catálogo y pedidos de un proveedor externo (módulos cdimport, cdexportarxml, cdintegrapedidoftp). Llama a sus endpoints por HTTP con User-Agent Java, sin navegador, tras subir los CSV por FTP. Sin exención, Browser Integrity Check la bloquea y las importaciones diarias dejan de ejecutarse en silencio. Detectado en producción en la flota (rev 10, 2026-09-03).",
+      "paths": [
+        "/modules/cdimport/",
+        "/modules/cdexportarxml/",
+        "/modules/cdintegrapedidoftp/"
+      ],
+      "notes": [
+        "Llamadas servidor-a-servidor con UA Java: el skip debe llevar todos los componentes (bic incluido), que el módulo ya envía.",
+        "Si el proveedor tiene IP fija, se puede endurecer añadiendo 'and ip.src eq IP' a cada rama."
       ]
     }
   },
