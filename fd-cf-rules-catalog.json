@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "revision": 11,
+  "revision": 13,
   "name": "fd-cf-rules-catalog",
   "updated": "2026-09-04",
   "comment": "Catálogo central de fdcfrules. Fuente única de verdad para IPs/ASNs/patrones. El módulo lo descarga y cachea 24h. Presupuesto plan Free CF: 5 reglas custom por zona; fdcfrules usa máximo 3 (skip, block, challenge) agrupando componentes por acción. Este fichero es público: no debe contener nombres de clientes, dominios, cuentas ni servidores.",
@@ -253,6 +253,46 @@
       "notes": [
         "Llamadas servidor-a-servidor con UA Java: el skip debe llevar todos los componentes (bic incluido), que el módulo ya envía.",
         "Si el proveedor tiene IP fija, se puede endurecer añadiendo 'and ip.src eq IP' a cada rama."
+      ]
+    },
+    "sellboost_finder": {
+      "rule": "skip",
+      "detect": {
+        "module_like": [
+          "sellboost%",
+          "%sellboost%"
+        ],
+        "active_required": true
+      },
+      "expression_fragment": "(http.request.uri.path contains \"/sellboost-finder-api/\")",
+      "source": "SellBoost Finder: buscador/recomendador de productos que sincroniza el catálogo desde sus servidores (AWS Irlanda) llamando a /sellboost-finder-api/ con User-Agent 'Symfony HttpClient (Curl)', sin navegador. Detectado en producción en la flota (rev 12): quedó bloqueado por un skip mal ordenado y por un bloqueo geográfico de Irlanda. La exención por ruta lo cubre aunque cambie de IP.",
+      "paths": [
+        "/sellboost-finder-api/"
+      ],
+      "notes": [
+        "Llamadas servidor-a-servidor con UA no navegador: el skip debe llevar todos los componentes (bic incluido).",
+        "Si se quiere endurecer, las IPs vistas en producción son 52.210.146.179 y 54.195.90.200 (AWS eu-west-1); pueden cambiar, así que la exención por ruta es la fiable.",
+        "Sus servidores están en Irlanda: un bloqueo por país 'IE' en la zona lo corta aunque el skip lo exima, si el bloqueo va antes. Por eso los skip deben ir siempre en primera posición (el módulo lo fuerza desde 0.9.4)."
+      ]
+    },
+    "doofinder": {
+      "rule": "skip",
+      "detect": {
+        "module_exact": [
+          "doofinder"
+        ],
+        "active_required": true
+      },
+      "expression_fragment": "(http.request.uri.path contains \"/module/doofinder/\") or (http.request.uri.path contains \"/modules/doofinder/\")",
+      "source": "Doofinder: buscador externo muy extendido en tiendas españolas. Su servicio lee el feed de productos de la tienda desde sus servidores (controlador feed.php) para indexar el catálogo, y recibe callbacks. Son llamadas servidor-a-servidor sin navegador que una protección genérica (BIC, challenge) podría cortar, con el síntoma de un buscador con catálogo desactualizado. Añadido preventivamente en la rev 13 por su implantación en la flota.",
+      "paths": [
+        "/module/doofinder/",
+        "/modules/doofinder/"
+      ],
+      "notes": [
+        "Se cubren las dos formas de la ruta: URL amigable (/module/doofinder/feed) y directa (/modules/doofinder/feed.php).",
+        "La búsqueda en sí la hace el navegador del cliente contra los servidores de Doofinder y no pasa por la tienda; lo que se exime es la lectura del feed y los callbacks.",
+        "Si el buscador muestra productos desactualizados o faltan novedades, comprobar en los eventos de Cloudflare si el feed está siendo bloqueado."
       ]
     }
   },
