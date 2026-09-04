@@ -1,8 +1,8 @@
 {
   "format": 1,
-  "revision": 10,
+  "revision": 11,
   "name": "fd-cf-rules-catalog",
-  "updated": "2026-09-03",
+  "updated": "2026-09-04",
   "comment": "Catálogo central de fdcfrules. Fuente única de verdad para IPs/ASNs/patrones. El módulo lo descarga y cachea 24h. Presupuesto plan Free CF: 5 reglas custom por zona; fdcfrules usa máximo 3 (skip, block, challenge) agrupando componentes por acción. Este fichero es público: no debe contener nombres de clientes, dominios, cuentas ni servidores.",
   "rules": {
     "skip": {
@@ -121,6 +121,12 @@
       "notes": [
         "NO usar el circuito de sincronizacion a Imunify360 con este componente: la proteccion equivalente esta en el ipset de flota del firewall (blacklist_fd), aplicada a nivel de cluster.",
         "Si se amplia la lista de rangos, hacerlo aqui y en el ipset de flota para mantenerlos alineados."
+      ],
+      "supersedes": [
+        {
+          "pattern": "/ip\\.src\\.asnum\\s+eq\\s+62610/",
+          "reason": "Bloqueo del AS62610 completo, retirado en la rev 7: resolvía a ~217 prefijos e incluía rangos residenciales legítimos (algunos españoles). Ahora se bloquean solo los tres rangos IPv6 de los operadores identificados, ya incluidos en la propuesta."
+        }
       ]
     },
     "facets": {
@@ -149,6 +155,12 @@
           "asn": 32934,
           "name": "Meta / Facebook",
           "reason": "Está en la lista de bots verificados de Cloudflare, así que 'not cf.client.bot' lo eximía del challenge. Se ha observado en producción recorriendo combinaciones de facetas (talla, copa, fabricante, temporada) a alto ritmo, que son las consultas más caras de PrestaShop, y rotando entre bloques /48 del rango 2a03:2880::/32 cuando se le bloquea. Excluirlo de la exención NO afecta a las previsualizaciones de enlaces de Facebook, Instagram o WhatsApp: esas peticiones no llevan parámetros de faceta."
+        }
+      ],
+      "supersedes": [
+        {
+          "pattern": "/^http\\.request\\.uri\\.query contains .+ and not http\\.cookie contains \"prestashop-\" and not cf\\.client\\.bot$/",
+          "reason": "Rama de facetas anterior a la rev 9: eximía a TODOS los bots verificados, incluido Meta (AS32934), que recorría combinaciones de filtros. La propuesta actual acota esa exención. Conservarla duplicaría la expresión sin aportar nada."
         }
       ]
     },
@@ -253,5 +265,8 @@
       "detect": "dominio es IP, .local o .test",
       "message": "Dominio no gestionable en Cloudflare: fdcfrules no propone reglas para esta instalación."
     }
+  },
+  "schema_notes": {
+    "supersedes": "Lista opcional por componente. Cada entrada {pattern, reason} declara un fragmento de versiones ANTERIORES de ese componente. Cuando la fusión lo encuentre en la regla de la zona, lo marcará como sustituido y no lo conservará por defecto. 'pattern' es una regex delimitada (o cadena literal) sobre el fragmento normalizado: minúsculas, espacios colapsados, sin paréntesis exteriores. Usar cuando el catálogo CAMBIA un fragmento en lugar de añadirlo; así el módulo no necesita actualizarse."
   }
 }
