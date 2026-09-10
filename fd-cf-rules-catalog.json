@@ -1,8 +1,8 @@
 {
   "format": 1,
-  "revision": 13,
+  "revision": 14,
   "name": "fd-cf-rules-catalog",
-  "updated": "2026-09-04",
+  "updated": "2026-09-10",
   "comment": "Catálogo central de fdcfrules. Fuente única de verdad para IPs/ASNs/patrones. El módulo lo descarga y cachea 24h. Presupuesto plan Free CF: 5 reglas custom por zona; fdcfrules usa máximo 3 (skip, block, challenge) agrupando componentes por acción. Este fichero es público: no debe contener nombres de clientes, dominios, cuentas ni servidores.",
   "rules": {
     "skip": {
@@ -308,5 +308,36 @@
   },
   "schema_notes": {
     "supersedes": "Lista opcional por componente. Cada entrada {pattern, reason} declara un fragmento de versiones ANTERIORES de ese componente. Cuando la fusión lo encuentre en la regla de la zona, lo marcará como sustituido y no lo conservará por defecto. 'pattern' es una regex delimitada (o cadena literal) sobre el fragmento normalizado: minúsculas, espacios colapsados, sin paréntesis exteriores. Usar cuando el catálogo CAMBIA un fragmento en lugar de añadirlo; así el módulo no necesita actualizarse."
+  },
+  "server_side": {
+    "comment": "Parametros de las capas de servidor que escribe el modulo (escudo .htaccess y robots.txt). Desde fdcfrules 0.10.0 el modulo los lee de aqui con fallback a los mismos valores en codigo: un ajuste de umbrales o rutas es una revision del catalogo, no una version nueva.",
+    "shield_facets": {
+      "min_per_segment": 5,
+      "max_total": 9,
+      "exempt_cidr_regex": [
+        "^66\\.249\\.(6[4-9]|7[0-9])\\.",
+        "^40\\.77\\.167\\.",
+        "^157\\.55\\.39\\.",
+        "^207\\.46\\.13\\.",
+        "^52\\.167\\.144\\."
+      ],
+      "source": "Umbrales fijados el 10/09/2026 con los domlogs de tres tiendas de la flota con facetas muy distintas. Tienda A (accesorios, 1.585 combinaciones q=): el umbral global de guiones del 0.9.6 bloqueaba una multiseleccion real de 4 tallas (12 peticiones legitimas); con 5+ separadores POR FACETA y tope global de 9 quedan 1.400 bloqueadas / 185 pasan, asumiendo como trade-off ~80 sondas del scraper de 4 valores. Tienda B (moda intima, 1.016, tallas en varias notaciones con barras dentro del valor): las 518 cadenas largas eran Bingbot desde 40.77.167.0/24 (exento por rango): cero falsos positivos humanos. Tienda C (papeleria): marcas con guion escapado en el nombre (%5C-) hacian que el 0.9.6 diera 403 a una navegacion de 3 marcas + 1 categoria; por eso los guiones escapados (%5C-, %5c-, \\-) NO cuentan como separadores. Techo de evasion asumido: 8 valores por peticion repartidos 4+4 en dos segmentos.",
+      "notes": [
+        "min_per_segment N = dispara con N valores en una faceta (el nombre de la faceta aporta el primer guion separador).",
+        "No bajar min_per_segment ni retirar los lookbehinds de escapado sin repetir el analisis de domlogs (tests/test-escudo-facetas.sh, modo fichero).",
+        "Las dos RewriteCond de q= van unidas por [OR] y deben ser las ULTIMAS del grupo: una condicion insertada entre ellas rompe la logica en silencio."
+      ]
+    },
+    "robots_facets": {
+      "disallow": [
+        "/*?q=",
+        "/*&q="
+      ],
+      "source": "Bingbot enumerando permutaciones de facetas en una tienda de la flota (336 peticiones desde 40.77.167.0/24, 09/2026). Los rastreadores legitimos estan exentos del escudo y del challenge por diseño; el robots.txt es la unica capa que reduce su carga de facetas. Solo afecta a bots que lo obedecen.",
+      "notes": [
+        "Opt-in por tienda: efecto SEO (Disallow no desindexa lo ya indexado). Decision de operador, casilla desmarcada por defecto.",
+        "El boton 'Generar robots.txt' de PrestaShop reescribe el fichero y borra el bloque: la tarjeta del modulo lo delata (SIN BLOQUE) y se reaplica."
+      ]
+    }
   }
 }
