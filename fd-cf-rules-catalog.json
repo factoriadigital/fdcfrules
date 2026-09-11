@@ -1,8 +1,8 @@
 {
   "format": 1,
-  "revision": 14,
+  "revision": 15,
   "name": "fd-cf-rules-catalog",
-  "updated": "2026-09-10",
+  "updated": "2026-09-11",
   "comment": "Catálogo central de fdcfrules. Fuente única de verdad para IPs/ASNs/patrones. El módulo lo descarga y cachea 24h. Presupuesto plan Free CF: 5 reglas custom por zona; fdcfrules usa máximo 3 (skip, block, challenge) agrupando componentes por acción. Este fichero es público: no debe contener nombres de clientes, dominios, cuentas ni servidores.",
   "rules": {
     "skip": {
@@ -337,6 +337,32 @@
       "notes": [
         "Opt-in por tienda: efecto SEO (Disallow no desindexa lo ya indexado). Decision de operador, casilla desmarcada por defecto.",
         "El boton 'Generar robots.txt' de PrestaShop reescribe el fichero y borra el bloque: la tarjeta del modulo lo delata (SIN BLOQUE) y se reaplica."
+      ]
+    },
+    "cache_rules": {
+      "exclude_paths": [
+        "/mi-carrito",
+        "/pedido",
+        "/confirmacion-pedido",
+        "/iniciar-sesion",
+        "/mi-cuenta",
+        "/datos-personales",
+        "/direcciones",
+        "/seguimiento-pedido",
+        "/seguimiento-pedido-invitado",
+        "/recuperar-contrasena",
+        "/descuento",
+        "/busqueda",
+        "/contactenos",
+        "/module/",
+        "/modules/"
+      ],
+      "edge_ttl": 7200,
+      "source": "Cache Rules de borde para facetas/listados sin sesion (sept. 2026). Cachea categorias, listados con q=, portada y CMS solo para peticiones sin cookie PrestaShop-; deja fuera fichas de producto (stock) salvo que se active la purga por stock, y las rutas de exclusion. Lista de rutas confirmada con el operador de una tienda de la flota: el carrito es /mi-carrito (no /carrito), y /busqueda es dinamica. La e con virgulilla de /recuperar-contrasena se compara sobre el path ya decodificado por Cloudflare.",
+      "notes": [
+        "Las fichas se aproximan por el patron /\\d+- (id numerico al inicio del ultimo segmento).",
+        "La purga puntual de ficha la dispara el hook actionUpdateQuantity (Avelon via StockAvailable::setQuantity).",
+        "La sincronizacion directa a BD (categorias, precios) no dispara evento: purgar al final de cada pasada las fichas tocadas."
       ]
     }
   }
