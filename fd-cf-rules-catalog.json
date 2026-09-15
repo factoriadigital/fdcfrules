@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "revision": 17,
+  "revision": 18,
   "name": "fd-cf-rules-catalog",
   "updated": "2026-09-15",
   "comment": "Catálogo central de fdcfrules. Fuente única de verdad para IPs/ASNs/patrones. El módulo lo descarga y cachea 24h. Presupuesto plan Free CF: 5 reglas custom por zona; fdcfrules usa máximo 3 (skip, block, challenge) agrupando componentes por acción. Este fichero es público: no debe contener nombres de clientes, dominios, cuentas ni servidores.",
@@ -342,6 +342,9 @@
     "shield_facets": {
       "min_per_segment": 5,
       "max_total": 9,
+      "listing_enum": true,
+      "page_min": 5,
+      "cheap_403": true,
       "exempt_cidr_regex": [
         "^66\\.249\\.(6[4-9]|7[0-9])\\.",
         "^40\\.77\\.167\\.",
@@ -349,11 +352,13 @@
         "^207\\.46\\.13\\.",
         "^52\\.167\\.144\\."
       ],
-      "source": "Umbrales fijados el 10/09/2026 con los domlogs de tres tiendas de la flota con facetas muy distintas. Tienda A (accesorios, 1.585 combinaciones q=): el umbral global de guiones del 0.9.6 bloqueaba una multiseleccion real de 4 tallas (12 peticiones legitimas); con 5+ separadores POR FACETA y tope global de 9 quedan 1.400 bloqueadas / 185 pasan, asumiendo como trade-off ~80 sondas del scraper de 4 valores. Tienda B (moda intima, 1.016, tallas en varias notaciones con barras dentro del valor): las 518 cadenas largas eran Bingbot desde 40.77.167.0/24 (exento por rango): cero falsos positivos humanos. Tienda C (papeleria): marcas con guion escapado en el nombre (%5C-) hacian que el 0.9.6 diera 403 a una navegacion de 3 marcas + 1 categoria; por eso los guiones escapados (%5C-, %5c-, \\-) NO cuentan como separadores. Techo de evasion asumido: 8 valores por peticion repartidos 4+4 en dos segmentos.",
+      "source": "Umbrales fijados el 10/09/2026 con los domlogs de tres tiendas de la flota con facetas muy distintas. Tienda A (accesorios, 1.585 combinaciones q=): el umbral global de guiones del 0.9.6 bloqueaba una multiseleccion real de 4 tallas (12 peticiones legitimas); con 5+ separadores POR FACETA y tope global de 9 quedan 1.400 bloqueadas / 185 pasan, asumiendo como trade-off ~80 sondas del scraper de 4 valores. Tienda B (moda intima, 1.016, tallas en varias notaciones con barras dentro del valor): las 518 cadenas largas eran Bingbot desde 40.77.167.0/24 (exento por rango): cero falsos positivos humanos. Tienda C (papeleria): marcas con guion escapado en el nombre (%5C-) hacian que el 0.9.6 diera 403 a una navegacion de 3 marcas + 1 categoria; por eso los guiones escapados (%5C-, %5c-, \\-) NO cuentan como separadores. Techo de evasion asumido: 8 valores por peticion repartidos 4+4 en dos segmentos. REVISION 18 (2026-09-15): se anaden tres capas tras las campanas de sept/2026 (fdcfrules 0.13.0). listing_enum: q= de cualquier longitud combinado con order= o page= y sin cookie -> 403 (campana de permutaciones con q= de 1-3 valores por debajo del umbral de guiones; un cliente real recibe la cookie en la primera carga antes de poder ordenar o paginar). page_min: paginacion profunda ?page=N sin q= y sin cookie -> 403 desde N=5 (campana de paginacion pura sobre categorias). cheap_403: ErrorDocument 403 default dentro del bloque del escudo — sin el, el 403 caia en la cadena de cPanel (/403.shtml inexistente -> pagina 404 de PrestaShop) y cada bloqueo costaba una ejecucion PHP completa (337 KB medidos frente a 239 bytes). La barra codificada %2F cuenta como separador de facetas igual que /.",
       "notes": [
         "min_per_segment N = dispara con N valores en una faceta (el nombre de la faceta aporta el primer guion separador).",
         "No bajar min_per_segment ni retirar los lookbehinds de escapado sin repetir el analisis de domlogs (tests/test-escudo-facetas.sh, modo fichero).",
-        "Las dos RewriteCond de q= van unidas por [OR] y deben ser las ULTIMAS del grupo: una condicion insertada entre ellas rompe la logica en silencio."
+        "Las dos RewriteCond de q= van unidas por [OR] y deben ser las ULTIMAS del grupo: una condicion insertada entre ellas rompe la logica en silencio.",
+        "listing_enum y cheap_403 son interruptores de flota (uniformes); min_per_segment, max_total y page_min admiten ajuste por tienda desde la tarjeta del escudo (Configuration), que pisa al catalogo.",
+        "page_min se limita en codigo al rango 2-9."
       ]
     },
     "robots_facets": {
