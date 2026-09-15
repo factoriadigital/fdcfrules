@@ -1,8 +1,8 @@
 {
   "format": 1,
-  "revision": 15,
+  "revision": 16,
   "name": "fd-cf-rules-catalog",
-  "updated": "2026-09-11",
+  "updated": "2026-09-15",
   "comment": "Catálogo central de fdcfrules. Fuente única de verdad para IPs/ASNs/patrones. El módulo lo descarga y cachea 24h. Presupuesto plan Free CF: 5 reglas custom por zona; fdcfrules usa máximo 3 (skip, block, challenge) agrupando componentes por acción. Este fichero es público: no debe contener nombres de clientes, dominios, cuentas ni servidores.",
   "rules": {
     "skip": {
@@ -127,6 +127,24 @@
           "pattern": "/ip\\.src\\.asnum\\s+eq\\s+62610/",
           "reason": "Bloqueo del AS62610 completo, retirado en la rev 7: resolvía a ~217 prefijos e incluía rangos residenciales legítimos (algunos españoles). Ahora se bloquean solo los tres rangos IPv6 de los operadores identificados, ya incluidos en la propuesta."
         }
+      ]
+    },
+    "block_meta_crawler": {
+      "rule": "block",
+      "detect": {
+        "always": true
+      },
+      "expression_fragment": "(ip.src in {2a03:2880:f800::/48 2a03:2880:f806::/48 2a03:2880:f814::/48})",
+      "source": "Crawler de Meta (AS32934, UA meta-webindexer) saturando tiendas de la flota con recorrido masivo de facetas y listados; rota entre bloques /48 del rango 2a03:2880::/32 cuando se le bloquea. Se bloquean SOLO los tres /48 confirmados en ataques (ago-sep 2026); NO bloquear el /32 ni el ASN completo: romperia las previsualizaciones de enlaces en Facebook, Instagram y WhatsApp. REVISION 16 (2026-09-15): Cloudflare trata a Meta como bot verificado y su crawler ejecuta JavaScript, de modo que ni la exencion acotada del challenge (rev 9) ni un desafio lo frenan de forma fiable; y el firewall del servidor no lo ve en tiendas con proxy naranja (la IP de conexion que llega al firewall es de Cloudflare; la IP real solo se restaura despues, en la capa web). El borde es la unica capa que lo corta del todo.",
+      "cidrs_v6": [
+        "2a03:2880:f800::/48",
+        "2a03:2880:f806::/48",
+        "2a03:2880:f814::/48"
+      ],
+      "notes": [
+        "Si Meta ataca desde un /48 nuevo, ampliarlo aqui y en las listas de bloqueo del servidor para mantener la alineacion.",
+        "Las previsualizaciones de FB/IG/WhatsApp salen de otros rangos del /32: verificar tras el despliegue que compartir un enlace de la tienda sigue mostrando la tarjeta.",
+        "En el servidor, los bloqueos de estos rangos solo actuan sobre trafico directo al origen (dominios en nube gris o accesos por IP): con proxy naranja este componente del borde es el que trabaja."
       ]
     },
     "facets": {
