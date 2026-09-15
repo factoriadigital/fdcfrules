@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "revision": 16,
+  "revision": 17,
   "name": "fd-cf-rules-catalog",
   "updated": "2026-09-15",
   "comment": "Catálogo central de fdcfrules. Fuente única de verdad para IPs/ASNs/patrones. El módulo lo descarga y cachea 24h. Presupuesto plan Free CF: 5 reglas custom por zona; fdcfrules usa máximo 3 (skip, block, challenge) agrupando componentes por acción. Este fichero es público: no debe contener nombres de clientes, dominios, cuentas ni servidores.",
@@ -79,6 +79,16 @@
       "notes": [
         "AdsBot usa el rango 66.249.64.0/20, ya cubierto por IP. No requiere fragmento extra.",
         "Si AdsBot recibe 403 pese a esta regla, la causa es Bot Fight Mode o Under Attack (por encima del WAF): desactivarlos, no basta la regla WAF."
+      ],
+      "supersedes": [
+        {
+          "pattern": "/^ip\\.src\\.country eq \"es\"$/",
+          "reason": "Coladero heredado de reglas artesanales: un skip por pais ES exime a TODO el trafico espanol de todas las reglas posteriores (bloqueos de flota, challenge de facetas), desactivando el WAF para la mayoria del trafico de la tienda. Detectado como extra conservado en zonas de la flota (sep 2026). Los servicios legitimos espanoles (Redsys/Bizum) ya tienen su componente propio por ASN e IPs."
+        },
+        {
+          "pattern": "/^cf\\.client\\.bot$/",
+          "reason": "Coladero heredado: un skip a todos los bots verificados exime tambien a Meta (AS32934) de los bloqueos posteriores, anulando el componente block_meta_crawler (mismo fallo que motivo la rev 9 en el challenge, aqui en version skip). Googlebot/AdsBot ya quedan exentos por el rango 66.249.64.0/20 de este componente; los demas buscadores legitimos no necesitan un skip global."
+        }
       ]
     },
     "amazon_cron": {
