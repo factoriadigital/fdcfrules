@@ -1,8 +1,8 @@
 {
   "format": 1,
-  "revision": 18,
+  "revision": 19,
   "name": "fd-cf-rules-catalog",
-  "updated": "2026-09-15",
+  "updated": "2026-09-17",
   "comment": "Catálogo central de fdcfrules. Fuente única de verdad para IPs/ASNs/patrones. El módulo lo descarga y cachea 24h. Presupuesto plan Free CF: 5 reglas custom por zona; fdcfrules usa máximo 3 (skip, block, challenge) agrupando componentes por acción. Este fichero es público: no debe contener nombres de clientes, dominios, cuentas ni servidores.",
   "rules": {
     "skip": {
@@ -391,12 +391,15 @@
         "/modules/"
       ],
       "edge_ttl": 7200,
-      "source": "Cache Rules de borde para facetas/listados sin sesion (sept. 2026). Cachea categorias, listados con q=, portada y CMS solo para peticiones sin cookie PrestaShop-; deja fuera fichas de producto (stock) salvo que se active la purga por stock, y las rutas de exclusion. Lista de rutas confirmada con el operador de una tienda de la flota: el carrito es /mi-carrito (no /carrito), y /busqueda es dinamica. La e con virgulilla de /recuperar-contrasena se compara sobre el path ya decodificado por Cloudflare.",
+      "source": "Cache Rules de borde para facetas/listados sin sesion (sept. 2026). Cachea categorias, listados con q=, portada y CMS solo para peticiones sin cookie PrestaShop-; deja fuera fichas de producto (stock) salvo que se active la purga por stock, y las rutas de exclusion. Lista de rutas confirmada con el operador de una tienda de la flota: el carrito es /mi-carrito (no /carrito), y /busqueda es dinamica. La e con virgulilla de /recuperar-contrasena se compara sobre el path ya decodificado por Cloudflare. Rev 19: el directorio de administracion (renombrado por tienda) y toda peticion con cookie de empleado (psAdmin) se excluyen SIEMPRE de la cache, detectados por el modulo, no por lista: una pagina del back office cacheada podria servirse a otro usuario. purge_interval_min: los procesos masivos (conectores de stock/precio, importaciones) purgan sus cambios agrupados como mucho cada N minutos, para que la cache siga protegiendo del scraping en vez de vaciarse en bucle; las ediciones manuales desde el BO purgan al instante.",
       "notes": [
         "Las fichas se aproximan por el patron /\\d+- (id numerico al inicio del ultimo segmento).",
         "La purga puntual de ficha la dispara el hook actionUpdateQuantity (Avelon via StockAvailable::setQuantity).",
-        "La sincronizacion directa a BD (categorias, precios) no dispara evento: purgar al final de cada pasada las fichas tocadas."
-      ]
+        "La sincronizacion directa a BD (categorias, precios) no dispara evento: purgar al final de cada pasada las fichas tocadas.",
+        "El back office se detecta por _PS_ADMIN_DIR_ o por la carpeta del docroot con firma de BO; no configurar a mano.",
+        "purge_interval_min es el techo de tiempo que un cambio hecho por un proceso masivo tarda en verse en las categorias cacheadas. Subirlo protege mas la cache; bajarlo refresca antes."
+      ],
+      "purge_interval_min": 10
     }
   }
 }
