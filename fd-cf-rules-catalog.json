@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "revision": 20,
+  "revision": 21,
   "name": "fd-cf-rules-catalog",
   "updated": "2026-10-06",
   "comment": "Catálogo central de fdcfrules. Fuente única de verdad para IPs/ASNs/patrones. El módulo lo descarga y cachea 24h. Presupuesto plan Free CF: 5 reglas custom por zona; fdcfrules usa máximo 3 (skip, block, challenge) agrupando componentes por acción. Este fichero es público: no debe contener nombres de clientes, dominios, cuentas ni servidores.",
@@ -162,15 +162,21 @@
       "detect": {
         "always": true
       },
-      "expression_fragment": "(has_key(http.request.uri.args, \"order\") and http.request.uri.args[\"order\"][0] ne \"\" and not (http.request.uri.path contains \"/module/\" or http.request.uri.path contains \"/modules/\") and not ends_with(http.request.uri.args[\"order\"][0], \".asc\") and not ends_with(http.request.uri.args[\"order\"][0], \".desc\") and not ends_with(http.request.uri.args[\"order\"][0], \".random\"))",
-      "source": "REVISION 20 (2026-10-06). Rastreadores automatizados piden listados con el parametro order mal formado (el selector de vista del tema pegado al valor: product.price.descgrid, product.price.desclist; o valores puramente numericos). El core de PrestaShop (SortOrder::newFromString) solo admite entidad.campo.direccion con direccion asc, desc o random y lanza una excepcion no capturada con cualquier otra cosa: cada peticion es un error 500 con ejecucion PHP completa. Como un order invalido nunca produce una pagina valida, bloquearlo no tiene falsos positivos. Detectado y validado en produccion en una tienda de la flota: order valido 200, order invalido 403 en el borde, order vacio 200.",
+      "expression_fragment": "(has_key(http.request.uri.args, \"order\") and starts_with(http.request.uri.args[\"order\"][0], \"product.\") and not (http.request.uri.path contains \"/module/\" or http.request.uri.path contains \"/modules/\") and not ends_with(http.request.uri.args[\"order\"][0], \".asc\") and not ends_with(http.request.uri.args[\"order\"][0], \".desc\") and not ends_with(http.request.uri.args[\"order\"][0], \".random\"))",
+      "source": "Rastreadores automatizados piden listados con el parametro order mal formado: el selector de vista del tema pegado al valor (product.price.descgrid, product.price.desclist). En los listados de productos el core de PrestaShop (SortOrder::newFromString) solo admite entidad.campo.direccion con direccion asc, desc o random y lanza una excepcion no capturada con cualquier otra cosa: cada peticion es un error 500 con ejecucion PHP completa. REVISION 21 (2026-10-06): se ESTRECHA a los valores que empiezan por product. — la firma real del trafico — porque la rev 20 bloqueaba cualquier order que no acabara en .asc/.desc/.random en TODA la zona, y solo los listados de PrestaShop leen ese parametro: caian tambien order=asc de la administracion de un WordPress alojado en el mismo dominio, o un order=<id> de un modulo llamado sin URL amigable (index.php?fc=module). El borde no puede distinguir un listado de otra URL; el origen si: el resto de valores mal formados (numericos incluidos) los rechaza el escudo del .htaccess desde fdcfrules 0.16.0, que actua tambien con Cloudflare delante y solo sobre URLs que despacha PrestaShop. La rev 20 se valido en produccion en una tienda de la flota (order valido 200, product.price.descgrid 403 en el borde, order vacio 200).",
       "notes": [
-        "Plan Free sin operador matches: se valida solo el sufijo de direccion (.asc, .desc, .random). El formato completo lo valida el origen (.htaccess).",
+        "Plan Free sin operador matches: se comprueba el prefijo product. y el sufijo de direccion (.asc, .desc, .random). El formato completo lo valida el origen (.htaccess).",
         "La comparacion distingue mayusculas: los temas generan siempre el valor en minusculas.",
-        "order vacio no se bloquea: PrestaShop lo trata como ausente y responde 200.",
-        "Las rutas /module/ y /modules/ quedan fuera: un modulo puede usar un parametro order con otro significado.",
+        "Un order que no empiece por product. no se toca en el borde, sea lo que sea: lo decide el origen.",
+        "Las rutas /module/ y /modules/ quedan fuera.",
         "Solo mira la primera aparicion del parametro; un order repetido lo resuelve el origen.",
         "Va en la regla de bloqueo, posterior a la de omision: pasarelas y rastreadores exentos no se ven afectados."
+      ],
+      "supersedes": [
+        {
+          "pattern": "/^has_key\\(http\\.request\\.uri\\.args, \"order\"\\) and http\\.request\\.uri\\.args\\[\"order\"\\]\\[0\\] ne \"\"/",
+          "reason": "Fragmento de la rev 20: bloqueaba cualquier order que no acabara en .asc/.desc/.random en toda la zona, tambien en URLs que no son listados (administracion de un WordPress en el mismo dominio, modulos sin URL amigable). La rev 21 lo sustituye por la version acotada a los valores que empiezan por product., ya incluida en la propuesta."
+        }
       ]
     },
     "facets": {
@@ -361,6 +367,8 @@
       "listing_enum": true,
       "page_min": 5,
       "cheap_403": true,
+      "invalid_order": true,
+      "invalid_order_exempt_paths": [],
       "exempt_cidr_regex": [
         "^66\\.249\\.(6[4-9]|7[0-9])\\.",
         "^40\\.77\\.167\\.",
@@ -374,7 +382,10 @@
         "No bajar min_per_segment ni retirar los lookbehinds de escapado sin repetir el analisis de domlogs (tests/test-escudo-facetas.sh, modo fichero).",
         "Las dos RewriteCond de q= van unidas por [OR] y deben ser las ULTIMAS del grupo: una condicion insertada entre ellas rompe la logica en silencio.",
         "listing_enum y cheap_403 son interruptores de flota (uniformes); min_per_segment, max_total y page_min admiten ajuste por tienda desde la tarjeta del escudo (Configuration), que pisa al catalogo.",
-        "page_min se limita en codigo al rango 2-9."
+        "page_min se limita en codigo al rango 2-9.",
+        "invalid_order (fdcfrules 0.16.0): el escudo rechaza las peticiones con order= mal formado (lo que no sea entidad.campo.direccion con asc, desc o random) con o sin Cloudflare y con o sin sesion, solo en URLs que despacha PrestaShop (ni ficheros ni directorios reales) y fuera de modulos y back office. false lo apaga en toda la flota. Cada tienda puede ademas apagarlo desde la tarjeta.",
+        "invalid_order_exempt_paths: rutas adicionales exentas de esa comprobacion (por ejemplo la de un modulo que use un parametro order propio en una URL que no empieza por /module/). Solo rutas simples: letras, cifras, guiones y barras.",
+        "Como el resto del escudo, un cambio en estas claves llega a cada tienda cuando se vuelve a escribir su escudo desde la tarjeta, no al refrescar el catalogo."
       ]
     },
     "robots_facets": {
