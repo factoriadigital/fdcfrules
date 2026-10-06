@@ -1,8 +1,8 @@
 {
   "format": 1,
-  "revision": 19,
+  "revision": 20,
   "name": "fd-cf-rules-catalog",
-  "updated": "2026-09-17",
+  "updated": "2026-10-06",
   "comment": "Catálogo central de fdcfrules. Fuente única de verdad para IPs/ASNs/patrones. El módulo lo descarga y cachea 24h. Presupuesto plan Free CF: 5 reglas custom por zona; fdcfrules usa máximo 3 (skip, block, challenge) agrupando componentes por acción. Este fichero es público: no debe contener nombres de clientes, dominios, cuentas ni servidores.",
   "rules": {
     "skip": {
@@ -155,6 +155,22 @@
         "Si Meta ataca desde un /48 nuevo, ampliarlo aqui y en las listas de bloqueo del servidor para mantener la alineacion.",
         "Las previsualizaciones de FB/IG/WhatsApp salen de otros rangos del /32: verificar tras el despliegue que compartir un enlace de la tienda sigue mostrando la tarjeta.",
         "En el servidor, los bloqueos de estos rangos solo actuan sobre trafico directo al origen (dominios en nube gris o accesos por IP): con proxy naranja este componente del borde es el que trabaja."
+      ]
+    },
+    "block_invalid_order": {
+      "rule": "block",
+      "detect": {
+        "always": true
+      },
+      "expression_fragment": "(has_key(http.request.uri.args, \"order\") and http.request.uri.args[\"order\"][0] ne \"\" and not (http.request.uri.path contains \"/module/\" or http.request.uri.path contains \"/modules/\") and not ends_with(http.request.uri.args[\"order\"][0], \".asc\") and not ends_with(http.request.uri.args[\"order\"][0], \".desc\") and not ends_with(http.request.uri.args[\"order\"][0], \".random\"))",
+      "source": "REVISION 20 (2026-10-06). Rastreadores automatizados piden listados con el parametro order mal formado (el selector de vista del tema pegado al valor: product.price.descgrid, product.price.desclist; o valores puramente numericos). El core de PrestaShop (SortOrder::newFromString) solo admite entidad.campo.direccion con direccion asc, desc o random y lanza una excepcion no capturada con cualquier otra cosa: cada peticion es un error 500 con ejecucion PHP completa. Como un order invalido nunca produce una pagina valida, bloquearlo no tiene falsos positivos. Detectado y validado en produccion en una tienda de la flota: order valido 200, order invalido 403 en el borde, order vacio 200.",
+      "notes": [
+        "Plan Free sin operador matches: se valida solo el sufijo de direccion (.asc, .desc, .random). El formato completo lo valida el origen (.htaccess).",
+        "La comparacion distingue mayusculas: los temas generan siempre el valor en minusculas.",
+        "order vacio no se bloquea: PrestaShop lo trata como ausente y responde 200.",
+        "Las rutas /module/ y /modules/ quedan fuera: un modulo puede usar un parametro order con otro significado.",
+        "Solo mira la primera aparicion del parametro; un order repetido lo resuelve el origen.",
+        "Va en la regla de bloqueo, posterior a la de omision: pasarelas y rastreadores exentos no se ven afectados."
       ]
     },
     "facets": {
