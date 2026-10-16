@@ -1,8 +1,8 @@
 {
   "format": 1,
-  "revision": 21,
+  "revision": 22,
   "name": "fd-cf-rules-catalog",
-  "updated": "2026-10-06",
+  "updated": "2026-10-16",
   "comment": "Catálogo central de fdcfrules. Fuente única de verdad para IPs/ASNs/patrones. El módulo lo descarga y cachea 24h. Presupuesto plan Free CF: 5 reglas custom por zona; fdcfrules usa máximo 3 (skip, block, challenge) agrupando componentes por acción. Este fichero es público: no debe contener nombres de clientes, dominios, cuentas ni servidores.",
   "rules": {
     "skip": {
@@ -370,7 +370,9 @@
       "invalid_order": true,
       "invalid_order_exempt_paths": [],
       "exempt_cidr_regex": [
-        "^66\\.249\\.(6[4-9]|7[0-9])\\.",
+        "^66\\.249\\.(6[4-9]|[78][0-9]|9[0-5])\\.",
+        "^192\\.178\\.[4-7]\\.",
+        "^2001:4860:4801:",
         "^40\\.77\\.167\\.",
         "^157\\.55\\.39\\.",
         "^207\\.46\\.13\\.",
@@ -386,7 +388,8 @@
         "invalid_order (fdcfrules 0.16.0): el escudo rechaza las peticiones con order= mal formado (lo que no sea entidad.campo.direccion con asc, desc o random) con o sin Cloudflare y con o sin sesion, solo en URLs que despacha PrestaShop (ni ficheros ni directorios reales) y fuera de modulos y back office. false lo apaga en toda la flota. Cada tienda puede ademas apagarlo desde la tarjeta.",
         "invalid_order_exempt_paths: rutas adicionales exentas de esa comprobacion (por ejemplo la de un modulo que use un parametro order propio en una URL que no empieza por /module/). Solo rutas simples: letras, cifras, guiones y barras.",
         "Como el resto del escudo, un cambio en estas claves llega a cada tienda cuando se vuelve a escribir su escudo desde la tarjeta, no al refrescar el catalogo."
-      ]
+      ],
+      "exempt_cidr_source": "Googlebot: https://developers.google.com/static/search/apis/ipranges/googlebot.json (2026-10-15): 66.249.64.0/20 (ampliado a /19 para cubrir los fetchers de Google 66.249.80-95), 192.178.4.0/22 e IPv6 2001:4860:4801::/48. Los /27-/28 de Google en 34.x/35.x no se cubren por regex: pendiente exencion por CIDR en el modulo. Bing sin cambios."
     },
     "robots_facets": {
       "disallow": [
