@@ -1,8 +1,8 @@
 {
   "format": 1,
-  "revision": 22,
+  "revision": 23,
   "name": "fd-cf-rules-catalog",
-  "updated": "2026-10-16",
+  "updated": "2026-10-21",
   "comment": "Catálogo central de fdcfrules. Fuente única de verdad para IPs/ASNs/patrones. El módulo lo descarga y cachea 24h. Presupuesto plan Free CF: 5 reglas custom por zona; fdcfrules usa máximo 3 (skip, block, challenge) agrupando componentes por acción. Este fichero es público: no debe contener nombres de clientes, dominios, cuentas ni servidores.",
   "rules": {
     "skip": {
@@ -376,7 +376,12 @@
         "^40\\.77\\.167\\.",
         "^157\\.55\\.39\\.",
         "^207\\.46\\.13\\.",
-        "^52\\.167\\.144\\."
+        "^52\\.167\\.144\\.",
+        "^72\\.14\\.199\\.",
+        "^74\\.125\\.(14[89]|15[01]|21[6-9])\\.",
+        "^108\\.177\\.2\\.",
+        "^192\\.178\\.1[67]\\.",
+        "^209\\.85\\.238\\."
       ],
       "source": "Umbrales fijados el 10/09/2026 con los domlogs de tres tiendas de la flota con facetas muy distintas. Tienda A (accesorios, 1.585 combinaciones q=): el umbral global de guiones del 0.9.6 bloqueaba una multiseleccion real de 4 tallas (12 peticiones legitimas); con 5+ separadores POR FACETA y tope global de 9 quedan 1.400 bloqueadas / 185 pasan, asumiendo como trade-off ~80 sondas del scraper de 4 valores. Tienda B (moda intima, 1.016, tallas en varias notaciones con barras dentro del valor): las 518 cadenas largas eran Bingbot desde 40.77.167.0/24 (exento por rango): cero falsos positivos humanos. Tienda C (papeleria): marcas con guion escapado en el nombre (%5C-) hacian que el 0.9.6 diera 403 a una navegacion de 3 marcas + 1 categoria; por eso los guiones escapados (%5C-, %5c-, \\-) NO cuentan como separadores. Techo de evasion asumido: 8 valores por peticion repartidos 4+4 en dos segmentos. REVISION 18 (2026-09-15): se anaden tres capas tras las campanas de sept/2026 (fdcfrules 0.13.0). listing_enum: q= de cualquier longitud combinado con order= o page= y sin cookie -> 403 (campana de permutaciones con q= de 1-3 valores por debajo del umbral de guiones; un cliente real recibe la cookie en la primera carga antes de poder ordenar o paginar). page_min: paginacion profunda ?page=N sin q= y sin cookie -> 403 desde N=5 (campana de paginacion pura sobre categorias). cheap_403: ErrorDocument 403 default dentro del bloque del escudo — sin el, el 403 caia en la cadena de cPanel (/403.shtml inexistente -> pagina 404 de PrestaShop) y cada bloqueo costaba una ejecucion PHP completa (337 KB medidos frente a 239 bytes). La barra codificada %2F cuenta como separador de facetas igual que /.",
       "notes": [
@@ -389,7 +394,7 @@
         "invalid_order_exempt_paths: rutas adicionales exentas de esa comprobacion (por ejemplo la de un modulo que use un parametro order propio en una URL que no empieza por /module/). Solo rutas simples: letras, cifras, guiones y barras.",
         "Como el resto del escudo, un cambio en estas claves llega a cada tienda cuando se vuelve a escribir su escudo desde la tarjeta, no al refrescar el catalogo."
       ],
-      "exempt_cidr_source": "Googlebot: https://developers.google.com/static/search/apis/ipranges/googlebot.json (2026-10-15): 66.249.64.0/20 (ampliado a /19 para cubrir los fetchers de Google 66.249.80-95), 192.178.4.0/22 e IPv6 2001:4860:4801::/48. Los /27-/28 de Google en 34.x/35.x no se cubren por regex: pendiente exencion por CIDR en el modulo. Bing sin cambios."
+      "exempt_cidr_source": "Googlebot: https://developers.google.com/static/search/apis/ipranges/googlebot.json (2026-10-15): 66.249.64.0/20 (ampliado a /19 para cubrir los fetchers de Google 66.249.80-95), 192.178.4.0/22 e IPv6 2001:4860:4801::/48. Los /27-/28 de Google en 34.x/35.x no se cubren por regex: pendiente exencion por CIDR en el modulo. Bing sin cambios. | rev 23 (2026-10-21): special-crawlers.json (Inspection Tool, AdsBot, etc.): 72.14.199.0/24, 74.125.148-151, 74.125.216-219, 108.177.2.0/24, 192.178.16.0/24+17.0/27, 209.85.238.0/24; sus 66.249.87-92 ya estaban en el /19 y su IPv6 en el /48."
     },
     "robots_facets": {
       "disallow": [
